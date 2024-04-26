@@ -71,6 +71,7 @@ class Ui_MainWindow(object):
         self.patients = None
         self.image_path_list = None
         self.historys = None
+        self.work_number = 0
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.cnnmodel = ResNet50(2).to(self.device)
         self.cnnmodel.load_state_dict(torch.load('/home/naitnal/Code/DL/remember_download_first_try/v0/ResNet50-glacuoma_modelweight.pth'))
@@ -211,7 +212,7 @@ class Ui_MainWindow(object):
         self.textEdit_3.setGeometry(QtCore.QRect(670, 690, 121, 151))
         self.textEdit_3.setObjectName("textEdit_3")
         self.pushButton_8 = QtWidgets.QPushButton(self.page_2)
-        self.pushButton_8.setGeometry(QtCore.QRect(820, 690, 80, 23))
+        self.pushButton_8.setGeometry(QtCore.QRect(820, 690, 90, 23))
         self.pushButton_8.setObjectName("pushButton_8")
         self.pushButton_8.clicked.connect(self.modify_history_information)
         self.checkBox = QtWidgets.QCheckBox(self.page_2)
@@ -269,6 +270,18 @@ class Ui_MainWindow(object):
         self.listWidget.setGeometry(QtCore.QRect(30, 100, 131, 471))
         self.listWidget.setObjectName("listWidget")
         self.listWidget.clicked.connect(self.select_patients)
+
+        self.label_18 = QtWidgets.QLabel(self.page_2)
+        self.label_18.setObjectName(u"label_18")
+        self.label_18.setGeometry(QtCore.QRect(940, 670, 90, 15))
+
+        self.lineEdit_8 = QtWidgets.QLineEdit(self.page_2)
+        self.lineEdit_8.setObjectName(u"lineEdit_8")
+        self.lineEdit_8.setGeometry(QtCore.QRect(940, 690, 113, 23))
+        self.lineEdit_8.setReadOnly(True)
+        self.lineEdit_8.setText(str(self.work_number))
+        self.lineEdit_8.setAlignment(Qt.AlignCenter)
+
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 1386, 20))
@@ -322,6 +335,7 @@ class Ui_MainWindow(object):
         self.pushButton_10.setText(_translate("MainWindow", "Auto analyze"))
         self.label_16.setText(_translate("MainWindow", "Blur degree"))
         self.label_17.setText(_translate("MainWindow", "illness prob"))
+        self.label_18.setText(_translate("MainWindow", "Work Count"))
     
     def load_patients(self) -> None:
         self.patients = self.db.get_patients()
@@ -481,9 +495,6 @@ class Ui_MainWindow(object):
         if self.checkBox_6.isChecked() == True:
             self.lineEdit_11.setText(f"{probability}% ill")
             
-
-
-
     def deselect_image_param(self):
         self.checkBox.setChecked(False)
         self.checkBox_2.setChecked(False)
@@ -601,6 +612,10 @@ class Ui_MainWindow(object):
             patient_id = self.patients[patient_index]["id"]
             if time and ai_diag and final_diag and doctor_note:
                 self.db.add_history(patient_id, time, ai_diag, final_diag, doctor_note)
+                self.work_number = self.work_number + 1
+                print(f"Work number++, current work number is : {self.work_number}")
+                self.lineEdit_8.setText(str(self.work_number))
+                self.lineEdit_8.setAlignment(Qt.AlignCenter)
                 self.select_patients()
             else:
                 msg = QMessageBox()
