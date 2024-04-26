@@ -10,7 +10,7 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QGraphicsScene, QGraphicsView, QMessageBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QGraphicsScene, QGraphicsView, QMessageBox, QFileDialog
 from database import Database
 from image_file_manage import ImageFileManage
 from PyQt5.QtGui import QPixmap, QPainter, QImage, qRgb, QColor
@@ -86,6 +86,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1386, 966)
+        self.MainWindow = MainWindow
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.stackedWidget = QtWidgets.QStackedWidget(self.centralwidget)
@@ -152,6 +153,17 @@ class Ui_MainWindow(object):
         self.pushButton_6.setGeometry(QtCore.QRect(280, 790, 80, 23))
         self.pushButton_6.setObjectName("pushButton_6")
         self.pushButton_6.clicked.connect(self.next_undiaged_patient)
+
+        self.pushButton_7 = QtWidgets.QPushButton(self.page_2)
+        self.pushButton_7.setObjectName(u"pushButton_7")
+        self.pushButton_7.setGeometry(QtCore.QRect(160, 10, 90, 23))
+        self.pushButton_7.clicked.connect(self.import_excel_data)
+
+        self.pushButton_11 = QtWidgets.QPushButton(self.page_2)
+        self.pushButton_11.setObjectName(u"pushButton_11")
+        self.pushButton_11.setGeometry(QtCore.QRect(270, 10, 90, 23))
+        self.pushButton_11.clicked.connect(self.export_excel_data)
+        
         self.label_6 = QtWidgets.QLabel(self.page_2)
         self.label_6.setGeometry(QtCore.QRect(160, 520, 191, 16))
         self.label_6.setObjectName("label_6")
@@ -275,7 +287,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "Glaucoma Diagnosis"))
         self.pushButton.setText(_translate("MainWindow", "PushButton"))
         self.pushButton_2.setText(_translate("MainWindow", "PushButton"))
         self.label.setText(_translate("MainWindow", "name"))
@@ -287,6 +299,8 @@ class Ui_MainWindow(object):
         self.pushButton_4.setText(_translate("MainWindow", "reset"))
         self.pushButton_5.setText(_translate("MainWindow", "last"))
         self.pushButton_6.setText(_translate("MainWindow", "next"))
+        self.pushButton_7.setText(_translate("MainWindow", "import data"))
+        self.pushButton_11.setText(_translate("MainWindow", "export data"))
         self.label_6.setText(_translate("MainWindow", "additional cynical information"))
         self.label_7.setText(_translate("MainWindow", "patient list"))
         self.label_8.setText(_translate("MainWindow", "fundus image list"))
@@ -326,6 +340,16 @@ class Ui_MainWindow(object):
         else:
             self.clear_history_information()
             
+    def import_excel_data(self):
+        file_path, _ = QFileDialog.getOpenFileName(self.MainWindow, "Open Excel File", "", "Excel Files (*.xlsx *.xls)")
+        if file_path:
+            self.db.import_data_from_excel(file_path)
+
+    def export_excel_data(self):
+        save_path, _ = QFileDialog.getSaveFileName(self.MainWindow, "Save Excel File", "", "Excel Files (*.xlsx)")
+        if save_path:
+            self.db.export_data_to_excel(save_path)
+    
     def select_patients(self):
         index = self.listWidget.currentRow()
         if index >= 0 and index < len(self.patients):
