@@ -18,6 +18,12 @@ from PyQt5.QtCore import Qt, QRectF
 import os
 from datetime import datetime
 import cv2
+from model import ResNet50
+import torch, random, numpy
+import torchvision.transforms as transforms
+from torchvision.transforms import Compose, Resize, ToTensor, Normalize
+from PIL import Image
+import torch.nn.functional as F
 
 class ImageViewer(QGraphicsView):
     def __init__(self, parent=None):
@@ -65,6 +71,17 @@ class Ui_MainWindow(object):
         self.patients = None
         self.image_path_list = None
         self.historys = None
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.cnnmodel = ResNet50(2).to(self.device)
+        self.cnnmodel.load_state_dict(torch.load('/home/naitnal/Code/DL/remember_download_first_try/v0/ResNet50-glacuoma_modelweight.pth'))
+        seed = 29
+        torch.manual_seed(seed)
+        random.seed(seed)
+        numpy.random.seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -222,6 +239,7 @@ class Ui_MainWindow(object):
         self.pushButton_10 = QtWidgets.QPushButton(self.page_2)
         self.pushButton_10.setGeometry(QtCore.QRect(1190, 340, 111, 23))
         self.pushButton_10.setObjectName("pushButton_10")
+        self.pushButton_10.clicked.connect(self.auto_analyze)
         self.label_16 = QtWidgets.QLabel(self.page_2)
         self.label_16.setGeometry(QtCore.QRect(1170, 390, 81, 16))
         self.label_16.setObjectName("label_16")
@@ -389,6 +407,58 @@ class Ui_MainWindow(object):
         bytes_per_line = width
         q_image = QImage(cv_image.data, width, height, bytes_per_line, QImage.Format_Grayscale8)
         return q_image.copy()
+
+    @staticmethod 
+    def compute_blur_score_lap(image):
+        # print(image.shape)
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
+        return blur_score
+
+    @staticmethod
+    def compute_blur_score_sobel(image):
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=5)
+        sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=5)
+
+        gradient_magnitude = cv2.magnitude(sobel_x, sobel_y)
+
+        mean_gradient = cv2.mean(gradient_magnitude)[0]
+
+        return mean_gradient
+
+    def auto_analyze(self):
+        index = self.listWidget_2.currentRow()
+        if index == -1:
+            return
+        image_abs_path = self.image_path_list[index]
+        transform = Compose([
+            Resize((224, 224)),
+            ToTensor(),
+        ])
+        image = Image.open(image_abs_path)
+        blur_score = round(self.compute_blur_score_sobel(numpy.array(image)), 2)
+        print(f"blur_score : {blur_score}")
+        input_image = transform(image).unsqueeze(0).to(self.device)
+        self.cnnmodel.eval()
+        with torch.no_grad():
+            output = self.cnnmodel(input_image)
+            probabilities = F.softmax(output, dim=1)
+
+            probability = round(probabilities[0][0].item() * 100, 2)
+            # print(probability)
+            self.lineEdit_4.setText(str(blur_score))
+            if blur_score > 100:
+                self.lineEdit_6.setText(f"{probability}% ill")
+            else:
+                self.lineEdit_6.setText("Image too blur!")
+        
+        if self.checkBox_6.isChecked() == True:
+            self.lineEdit_11.setText(f"{probability}% ill")
+            
+
+
 
     def deselect_image_param(self):
         self.checkBox.setChecked(False)
