@@ -188,24 +188,30 @@ class Ui_MainWindow(object):
         self.checkBox = QtWidgets.QCheckBox(self.page_2)
         self.checkBox.setGeometry(QtCore.QRect(1180, 50, 85, 21))
         self.checkBox.setObjectName("checkBox")
+        self.checkBox.stateChanged.connect(self.check_gray)
         self.checkBox_2 = QtWidgets.QCheckBox(self.page_2)
         self.checkBox_2.setGeometry(QtCore.QRect(1180, 80, 85, 21))
         self.checkBox_2.setObjectName("checkBox_2")
+        self.checkBox_2.stateChanged.connect(self.check_CLAHE)
         self.checkBox_3 = QtWidgets.QCheckBox(self.page_2)
         self.checkBox_3.setGeometry(QtCore.QRect(1180, 110, 101, 21))
         self.checkBox_3.setObjectName("checkBox_3")
+        self.checkBox_3.stateChanged.connect(self.check_R_channel)
         self.checkBox_4 = QtWidgets.QCheckBox(self.page_2)
         self.checkBox_4.setGeometry(QtCore.QRect(1180, 140, 121, 21))
         self.checkBox_4.setObjectName("checkBox_4")
+        self.checkBox_4.stateChanged.connect(self.check_G_channel)
         self.checkBox_5 = QtWidgets.QCheckBox(self.page_2)
         self.checkBox_5.setGeometry(QtCore.QRect(1180, 170, 121, 21))
         self.checkBox_5.setObjectName("checkBox_5")
+        self.checkBox_5.stateChanged.connect(self.check_B_channel)
         self.label_14 = QtWidgets.QLabel(self.page_2)
         self.label_14.setGeometry(QtCore.QRect(1180, 30, 111, 16))
         self.label_14.setObjectName("label_14")
         self.pushButton_9 = QtWidgets.QPushButton(self.page_2)
         self.pushButton_9.setGeometry(QtCore.QRect(1180, 200, 80, 23))
         self.pushButton_9.setObjectName("pushButton_9")
+        self.pushButton_9.clicked.connect(self.deselect_image_param)
         self.checkBox_6 = QtWidgets.QCheckBox(self.page_2)
         self.checkBox_6.setGeometry(QtCore.QRect(820, 730, 85, 21))
         self.checkBox_6.setObjectName("checkBox_6")
@@ -343,87 +349,100 @@ class Ui_MainWindow(object):
 
         else:
             return
+    @staticmethod
+    def extract_channel(cv_image, channel):
+        channel_image = cv_image[:, :, channel]
+        bgr_image = cv2.merge([channel_image, channel_image, channel_image])
+        gray_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2GRAY)
+        return gray_image
 
     @staticmethod
-    def apply_clahe_RGB_color(q_image):
-        # 将图像转换为 LAB 颜色空间
-        lab_image = q_image.convertToFormat(QImage.Format_RGB888).convertToFormat(QImage.Format_RGB32)
-        
-        width = lab_image.width()
-        height = lab_image.height()
-
-        # 获取亮度通道
-        lightness_channel = QImage(width, height, QImage.Format_Grayscale8)
-        for y in range(height):
-            for x in range(width):
-                color = QColor(lab_image.pixel(x, y))
-                value = color.lightness()
-                lightness_channel.setPixel(x, y, qRgb(value, value, value))
-
-        # 应用 CLAHE 增强
-        clahe = lightness_channel.copy()
-        for y in range(height):
-            for x in range(width):
-                value = lightness_channel.pixelColor(x, y).value()
-                clahe.setPixel(x, y, qRgb(value, value, value))
-
-        # 将增强后的亮度通道与原始色度通道合并
-        enhanced_image = QImage(width, height, QImage.Format_RGB32)
-        for y in range(height):
-            for x in range(width):
-                l = clahe.pixelColor(x, y).value()
-                a = QColor(lab_image.pixel(x, y)).saturation()
-                b = QColor(lab_image.pixel(x, y)).hue()
-                enhanced_image.setPixel(x, y, qRgb(l, a, b))
-
+    def apply_clahe_gray(cv_image):
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        enhanced_image = clahe.apply(cv_image)
         return enhanced_image
 
     @staticmethod
-    def apply_clahe_gray(q_image):
+    def apply_clahe_RGB_color(cv_image):
+        lab_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2LAB)
 
-        clahe = q_image.copy()
-        for y in range(q_image.height()):
-            for x in range(q_image.width()):
-                value = q_image.pixelColor(x, y).value()
-                clahe.setPixel(x, y, qRgb(value, value, value))
-        
-        return clahe
+        l_channel, a_channel, b_channel = cv2.split(lab_image)
 
-    @staticmethod
-    def trans_to_grayscale(q_image):
-        gray_image = q_image.convertToFormat(QImage.Format_Grayscale8)
-        return gray_image 
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        enhanced_l_channel = clahe.apply(l_channel)
+
+        enhanced_lab_image = cv2.merge((enhanced_l_channel, a_channel, b_channel))
+
+        enhanced_image = cv2.cvtColor(enhanced_lab_image, cv2.COLOR_LAB2BGR)
+        return enhanced_image
 
     @staticmethod
-    def extract_channel(q_image, channel):
-        # 提取指定通道
-        width = q_image.width()
-        height = q_image.height()
-        channel_image = QImage(width, height, QImage.Format_Grayscale8)
-        
-        for y in range(height):
-            for x in range(width):
-                color = QColor(q_image.pixel(x, y))
-                value = color.red() if channel == 0 else (color.green() if channel == 1 else color.blue())
-                channel_image.setPixel(x, y, qRgb(value, value, value))
-        
-        return channel_image
+    def cv_to_qimage_bgr(cv_image):
+        height, width, channels = cv_image.shape
+        bytes_per_line = channels * width
+        q_image = QImage(cv_image.data, width, height, bytes_per_line, QImage.Format_BGR888)
+        return q_image.copy()
 
+    @staticmethod
+    def cv_to_qimage_gray(cv_image):
+        height, width = cv_image.shape
+        bytes_per_line = width
+        q_image = QImage(cv_image.data, width, height, bytes_per_line, QImage.Format_Grayscale8)
+        return q_image.copy()
+
+    def deselect_image_param(self):
+        self.checkBox.setChecked(False)
+        self.checkBox_2.setChecked(False)
+        self.checkBox_3.setChecked(False)
+        self.checkBox_4.setChecked(False)
+        self.checkBox_5.setChecked(False)
+
+    def check_CLAHE(self):
+        self.select_image()
+    
+    def check_gray(self, state):
+        if state == 2:
+            self.checkBox_3.setChecked(False)
+            self.checkBox_4.setChecked(False)
+            self.checkBox_5.setChecked(False)
+        self.select_image()
+
+    def check_R_channel(self, state):
+        if state == 2:
+            self.checkBox.setChecked(False)
+            self.checkBox_4.setChecked(False)
+            self.checkBox_5.setChecked(False)
+        self.select_image()
+    
+    def check_G_channel(self, state):
+        if state == 2:
+            self.checkBox.setChecked(False)
+            self.checkBox_3.setChecked(False)
+            self.checkBox_5.setChecked(False)
+        self.select_image()
+
+    def check_B_channel(self, state):
+        if state == 2: 
+            self.checkBox.setChecked(False)
+            self.checkBox_3.setChecked(False)
+            self.checkBox_4.setChecked(False)
+        self.select_image()
 
     def process_image(self, image_path) -> QPixmap:
-        image = QImage(image_path)
+        # image = QImage(image_path)
+        image = cv2.imread(image_path)
         gray = False
         if self.checkBox.isChecked() == True:
             gray = True
-            image = self.trans_to_grayscale(image)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         else:
             gray = True
             if self.checkBox_3.isChecked() == True:
-                image = self.extract_channel(image, 0)
+                image = self.extract_channel(image, 2)
             elif self.checkBox_4.isChecked() == True:
                 image = self.extract_channel(image, 1)
             elif self.checkBox_5.isChecked() == True:
-                image = self.extract_channel(image, 2)
+                image = self.extract_channel(image, 0)
             else:
                 gray = False
         
@@ -432,8 +451,13 @@ class Ui_MainWindow(object):
                 image = self.apply_clahe_gray(image)
             else:
                 image = self.apply_clahe_RGB_color(image)
-        return QPixmap.fromImage(image)
+            
+        if gray:
+            image = self.cv_to_qimage_gray(image)
+        else:
+            image = self.cv_to_qimage_bgr(image)
 
+        return QPixmap.fromImage(image)
 
 
     def select_image(self):
