@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS history (
                 time TEXT,
                 ai_diagnosis TEXT,
                 final_diagnosis TEXT,
+                doctor_note TEXT,
                 FOREIGN KEY (patient_id) REFERENCES patients(id)
             );
 
@@ -40,8 +41,6 @@ CREATE TABLE IF NOT EXISTS history (
 -- (10, '2024-05-01 03:00:00', 'AI diagnosis for patient 10 - 2', 'Final diagnosis for patient 10 - 2');
 
 
-ALTER TABLE history
-            ADD COLUMN doctor_note TEXT;
 -- INSERT INTO patients (name, age, gender, id_number, description, additional_information) VALUES
 -- ('Aliceeee', 30, 'Female', '1234567890', 'Description of Alice', 'Additional diagnosis for Alice');
 

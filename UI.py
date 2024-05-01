@@ -365,6 +365,7 @@ class Ui_MainWindow(object):
             self.db.export_data_to_excel(save_path)
     
     def select_patients(self):
+        self.clear_auto_analyze_result()
         index = self.listWidget.currentRow()
         if index >= 0 and index < len(self.patients):
             patient = self.patients[index]
@@ -466,34 +467,51 @@ class Ui_MainWindow(object):
 
         return mean_gradient
 
+    def set_result_text(self, probability, blur_score):
+        if blur_score > 100:
+            self.lineEdit_6.setText(f"{probability}% ill")
+        else:
+            self.lineEdit_6.setText("Image too blur!")
+        self.lineEdit_4.setText(str(blur_score))
+        if self.checkBox_6.isChecked() == True:
+            self.lineEdit_11.setText(f"{probability}% ill")
+
     def auto_analyze(self):
         index = self.listWidget_2.currentRow()
         if index == -1:
             return
         image_abs_path = self.image_path_list[index]
-        transform = Compose([
-            Resize((224, 224)),
-            ToTensor(),
-        ])
-        image = Image.open(image_abs_path)
-        blur_score = round(self.compute_blur_score_sobel(numpy.array(image)), 2)
-        print(f"blur_score : {blur_score}")
-        input_image = transform(image).unsqueeze(0).to(self.device)
-        self.cnnmodel.eval()
-        with torch.no_grad():
-            output = self.cnnmodel(input_image)
-            probabilities = F.softmax(output, dim=1)
 
-            probability = round(probabilities[0][0].item() * 100, 2)
-            # print(probability)
-            self.lineEdit_4.setText(str(blur_score))
-            if blur_score > 100:
-                self.lineEdit_6.setText(f"{probability}% ill")
-            else:
-                self.lineEdit_6.setText("Image too blur!")
-        
-        if self.checkBox_6.isChecked() == True:
-            self.lineEdit_11.setText(f"{probability}% ill")
+        # generate image_text_abs_path by replace the suffix of image_abs_path after '.'
+        image_text_abs_path = image_abs_path[:image_abs_path.rfind('.')] + '.txt'
+        if os.path.exists(image_text_abs_path):
+
+            # read two float numbers from image_text_abs_path
+            with open(image_text_abs_path, 'r') as f:
+                blur_score = float(f.readline())
+                probability = float(f.readline())
+        else:
+            transform = Compose([
+                Resize((224, 224)),
+                ToTensor(),
+            ])
+            image = Image.open(image_abs_path)
+            blur_score = round(self.compute_blur_score_sobel(numpy.array(image)), 2)
+            print(f"blur_score : {blur_score}")
+            input_image = transform(image).unsqueeze(0).to(self.device)
+            self.cnnmodel.eval()
+
+            with torch.no_grad():
+                output = self.cnnmodel(input_image)
+                probabilities = F.softmax(output, dim=1)
+                probability = round(probabilities[0][0].item() * 100, 2)
+            
+            # open image_text_abs_path and write two float numbers
+            with open(image_text_abs_path, 'w') as f:
+                f.write(str(blur_score) + '\n')
+                f.write(str(probability) + '\n')
+
+        self.set_result_text(probability, blur_score)
             
     def deselect_image_param(self):
         self.checkBox.setChecked(False)
@@ -563,15 +581,27 @@ class Ui_MainWindow(object):
             image = self.cv_to_qimage_bgr(image)
 
         return QPixmap.fromImage(image)
-
+    
+    def clear_auto_analyze_result(self):
+        self.lineEdit_4.clear()
+        self.lineEdit_6.clear()
 
     def select_image(self):
+        self.clear_auto_analyze_result()
         index = self.listWidget_2.currentRow()
         if index >= 0 and index < len(self.image_path_list):
             image_abs_path = self.image_path_list[index]
             # image_pixmap = QPixmap(image_abs_path)
             image_pixmap = self.process_image(image_abs_path)
             self.graphicsView.set_image(image_pixmap)
+            # check whether the image has been processed
+            image_text_abs_path = image_abs_path[:image_abs_path.rfind('.')] + '.txt'
+            if os.path.exists(image_text_abs_path):
+                with open(image_text_abs_path, 'r') as f:
+                    blur_score = float(f.readline())
+                    probability = float(f.readline())
+                    self.set_result_text(probability, blur_score)
+
 
     def reset_patient_information(self):
         self.select_patients()
